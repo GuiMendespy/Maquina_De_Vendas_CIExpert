@@ -7,7 +7,7 @@ module unidade_controle (
   input  logic [1:0]  coin_in,
   input  logic        confirm,
   input  logic        can_sell,
-  //output estado_t     estado, // Porta de saída para monitoramento/depuração
+  output estado_t     estado, // Porta de saída para monitoramento/depuração
   
   // Sinais de controle do Datapath e Memória
   output logic        credit_load,
