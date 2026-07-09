@@ -8,7 +8,7 @@ package vending_pkg;
     DISPENSE = 3'b011,
     CHANGE   = 3'b100,
     ERROR    = 3'b101
-  } estado;
+  } estado_t;
 
   // Constantes em ponto fixo (valores em centavos) para o memória e o comparador.
   localparam int VAL_MOEDA_25  = 25;
