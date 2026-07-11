@@ -2,6 +2,7 @@
 
 package vending_tb_pkg;
     import uvm_pkg::*;
+    import vending_pkg::*;
 
     class vending_transaction extends uvm_sequence_item;
         bit [1:0] coin_in;
@@ -197,6 +198,15 @@ package vending_tb_pkg;
         bit       prev_dispense;
         bit       prev_error;
 
+        // Credito e preco travados no estado CHECK, espelhando o price_reg do RTL
+        // (vending_top.sv), que so atualiza durante CHECK e permanece estavel
+        // durante DISPENSE/CHANGE mesmo que sel_item mude depois.
+        bit [7:0] saved_credit;
+        bit [7:0] saved_price;
+
+        string    scenario_name = "";
+        bit       scenario_pass = 1;
+
         function new(string name, uvm_component parent);
             super.new(name, parent);
         endfunction
@@ -204,6 +214,17 @@ package vending_tb_pkg;
         function void build_phase(uvm_phase phase);
             super.build_phase(phase);
             imp = new("imp", this);
+        endfunction
+
+        function void start_scenario(string name);
+            scenario_name = name;
+            scenario_pass = 1;
+            `uvm_info("SCOREBOARD", $sformatf("========== INICIO %s ==========", name), UVM_LOW)
+        endfunction
+
+        function void end_scenario();
+            `uvm_info("SCOREBOARD", $sformatf("========== %s: %s ==========",
+                      scenario_name, scenario_pass ? "PASS" : "FAIL"), UVM_LOW)
         endfunction
 
         function void write(vending_transaction tr);
@@ -217,11 +238,19 @@ package vending_tb_pkg;
 
             if (tr.cancel) credit = 0;
 
+            // Snapshot no estado CHECK: e quando o RTL trava price_reg (e o
+            // credito ja esta estavel, pois credit_load/reset_credit sao 0 aqui).
+            if (tr.state_out == CHECK) begin
+                saved_credit = credit;
+                saved_price  = price[tr.sel_item];
+            end
+
             if (tr.dispense && !prev_dispense) begin
                 if (credit >= price[tr.sel_item] && stock[tr.sel_item] > 0) begin
                     `uvm_info("SCOREBOARD", "[PASS] Dispense com credito e estoque suficientes", UVM_LOW)
                     stock[tr.sel_item]--;
                 end else begin
+                    scenario_pass = 0;
                     `uvm_error("SCOREBOARD", "[FAIL] Dispense ocorreu sem credito/estoque suficientes")
                 end
             end
@@ -230,15 +259,17 @@ package vending_tb_pkg;
                 if (credit < price[tr.sel_item] || stock[tr.sel_item] == 0) begin
                     `uvm_info("SCOREBOARD", "[PASS] Erro ocorreu corretamente conforme esperado", UVM_LOW)
                 end else begin
+                    scenario_pass = 0;
                     `uvm_error("SCOREBOARD", "[FAIL] Erro disparado indevidamente")
                 end
             end
 
             if (prev_dispense) begin
-                bit [7:0] exp_change = credit - price[tr.sel_item];
+                bit [7:0] exp_change = saved_credit - saved_price;
                 if (tr.change_out == exp_change) begin
                     `uvm_info("SCOREBOARD", $sformatf("[PASS] Troco correto: %0d", tr.change_out), UVM_LOW)
                 end else begin
+                    scenario_pass = 0;
                     `uvm_error("SCOREBOARD", $sformatf("[FAIL] Troco incorreto. Esperado: %0d, Obtido: %0d", exp_change, tr.change_out))
                 end
                 credit = 0;
@@ -299,8 +330,11 @@ package vending_tb_pkg;
         task run_phase(uvm_phase phase);
             vending_sequence_compra_sucesso seq;
             phase.raise_objection(this);
+            env.sb.start_scenario("Cenario 1: Compra com sucesso");
             seq = vending_sequence_compra_sucesso::type_id::create("seq");
             seq.start(env.sqr);
+            #20;
+            env.sb.end_scenario();
             phase.drop_objection(this);
         endtask
     endclass
@@ -315,8 +349,11 @@ package vending_tb_pkg;
         task run_phase(uvm_phase phase);
             vending_sequence_credito_insuficiente seq;
             phase.raise_objection(this);
+            env.sb.start_scenario("Cenario 2: Credito insuficiente");
             seq = vending_sequence_credito_insuficiente::type_id::create("seq");
             seq.start(env.sqr);
+            #20;
+            env.sb.end_scenario();
             phase.drop_objection(this);
         endtask
     endclass
@@ -331,8 +368,11 @@ package vending_tb_pkg;
         task run_phase(uvm_phase phase);
             vending_sequence_cancelamento seq;
             phase.raise_objection(this);
+            env.sb.start_scenario("Cenario 3: Cancelamento");
             seq = vending_sequence_cancelamento::type_id::create("seq");
             seq.start(env.sqr);
+            #20;
+            env.sb.end_scenario();
             phase.drop_objection(this);
         endtask
     endclass
@@ -347,8 +387,11 @@ package vending_tb_pkg;
         task run_phase(uvm_phase phase);
             vending_sequence_estoque_esgotado seq;
             phase.raise_objection(this);
+            env.sb.start_scenario("Cenario 4: Estoque esgotado");
             seq = vending_sequence_estoque_esgotado::type_id::create("seq");
             seq.start(env.sqr);
+            #20;
+            env.sb.end_scenario();
             phase.drop_objection(this);
         endtask
     endclass
@@ -368,17 +411,31 @@ package vending_tb_pkg;
 
             phase.raise_objection(this);
 
+            #20
+                    
+            env.sb.start_scenario("Cenario 1: Compra com sucesso");
             seq_compra = vending_sequence_compra_sucesso::type_id::create("seq_compra");
             seq_compra.start(env.sqr);
+            #20;
+            env.sb.end_scenario();
 
+            env.sb.start_scenario("Cenario 2: Credito insuficiente");
             seq_credito = vending_sequence_credito_insuficiente::type_id::create("seq_credito");
             seq_credito.start(env.sqr);
+            #20;
+            env.sb.end_scenario();
 
+            env.sb.start_scenario("Cenario 3: Cancelamento");
             seq_cancela = vending_sequence_cancelamento::type_id::create("seq_cancela");
             seq_cancela.start(env.sqr);
+            #20;
+            env.sb.end_scenario();
 
+            env.sb.start_scenario("Cenario 4: Estoque esgotado");
             seq_estoque = vending_sequence_estoque_esgotado::type_id::create("seq_estoque");
             seq_estoque.start(env.sqr);
+            #20;
+            env.sb.end_scenario();
 
             phase.drop_objection(this);
         endtask

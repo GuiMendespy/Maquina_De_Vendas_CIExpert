@@ -42,7 +42,8 @@ VCS_FLAGS = -full64 \
             -debug_access+all \
             -kdb \
             -ntb_opts uvm \
-            +lint=all,noWMIA-L,noNS
+            +lint=all,noWMIA-L,noNS \
+			-debug_all
 
 # ==========================================================
 # Compilação / Elaboração Unificada (Gera o executável simv)
@@ -62,7 +63,7 @@ run: compile
 # Abrir ondas no Synopsys Verdi
 # ==========================================================
 wave:
-	verdi -ssf vending_machine.vcd &
+	verdi -ssf vending_machine.fsdb &
 
 # ==========================================================
 # Síntese Lógica no Design Compiler

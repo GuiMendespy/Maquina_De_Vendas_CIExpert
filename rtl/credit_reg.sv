@@ -24,12 +24,10 @@ module registrador_credito (
   end
 
   // Registrador síncrono de acúmulo puro
-  // Removido o '$isunknown' que causava o crash fatal no Design Compiler
   always_ff @(posedge clk) begin
+    credit <= credit + coin_value; // Acúmulo direto em lógica binária pura
     if (rst || reset_credit || cancel) begin
-      credit <= 8'd0; 
-    end else if (credit_load) begin
-      credit <= credit + coin_value; // Acúmulo direto em lógica binária pura
+      credit <= 8'd0;
     end
   end
 

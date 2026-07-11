@@ -26,9 +26,21 @@ module vending_top (
   logic       w_mem_write;
   estado_t    w_estado;
 
+  // Preço lido durante CHECK precisa ser retido, pois 'w_price' volta a 0
+  // assim que 'mem_read' desativa (em DISPENSE/CHANGE)
+  logic [7:0] price_reg;
+
+  always_ff @(posedge clk) begin
+    if (rst) begin
+      price_reg <= 8'd0;
+    end else if (w_estado == CHECK) begin
+      price_reg <= w_price;
+    end
+  end
+
   // Saídas contínuas
   assign display   = w_credit; // Exibe crédito atual
-  assign state_out = logic'(w_estado); // Converte enum para bits para o testbench
+  assign state_out = w_estado; // Converte enum para bits para o testbench
 
   // Instanciação da Unidade de Controle Simplificada
   unidade_controle fsm_inst (
@@ -54,14 +66,17 @@ module vending_top (
   );
 
   subtrator sub_inst (
-    .credit(w_credit), .price(w_price), .change(w_change)
+    .credit(w_credit), .price(price_reg), .change(w_change)
   );
 
   // Saída registrada de Troco (Válido estritamente em CHANGE)
   always_ff @(posedge clk) begin
-    if (rst || cancel) begin
+    change_out <= 0;
+    if (rst) begin
       change_out <= 8'd0;
-    end else if (w_estado == CHANGE) begin
+    end else if (cancel) begin
+      change_out <= w_credit;
+    end else if (w_estado == DISPENSE) begin
       change_out <= w_change; // Registra o troco calculado
     end
   end

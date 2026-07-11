@@ -28,10 +28,17 @@ module tb_vending;
   always #5 clk = ~clk;
 
   initial begin
+    $fsdbDumpfile("vending_machine.fsdb");
+    $fsdbDumpvars(0, tb_vending);
+    // ou $fsdbDumpvars(0, tb_vending, "+all") pra pegar até variáveis internas de structs/arrays
+  end
+
+  initial begin
     clk = 0;
     rst = 1;
     repeat (2) @(posedge clk);
     rst = 0;
+    
   end
 
   initial begin

@@ -1,8 +1,8 @@
 interface vending_interface (input logic clk, input logic rst);
-    logic [1:0] coin_in;
-    logic [1:0] sel_item;
-    logic confirm;
-    logic cancel;
+    logic [1:0] coin_in  = 2'b00;
+    logic [1:0] sel_item = 2'b00;
+    logic confirm = 1'b0;
+    logic cancel  = 1'b0;
     
     logic dispense;
     logic [7:0] change_out;
